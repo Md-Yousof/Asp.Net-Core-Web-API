@@ -1,0 +1,223 @@
+{
+	"info": {
+		"_postman_id": "00d8618f-190e-4076-9cd9-b0802dbc5e46",
+		"name": "URLCollection_API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "27753771"
+	},
+	"item": [
+		{
+			"name": "ForGet",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:44236/api/Order",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "44236",
+					"path": [
+						"api",
+						"Order"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "ForPost",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "customerName",
+							"value": "Jahedul Islam Emon",
+							"type": "text"
+						},
+						{
+							"key": "imageFile",
+							"type": "file",
+							"src": "/C:/Users/idb_c#/Pictures/unnamed.png"
+						},
+						{
+							"key": "orderDate",
+							"value": "3/14/2023",
+							"type": "text"
+						},
+						{
+							"key": "isComplete",
+							"value": "True",
+							"type": "text"
+						},
+						{
+							"key": "orderDetail",
+							"value": "[\n            {             \n                \"productId\": 2,\n                \"quantity\": 3,\n                \"price\": 300.00\n            },\n{             \n                \"productId\": 3,\n                \"quantity\": 4,\n                \"price\": 400.00\n            }\n        ]",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://localhost:44236/api/Order",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "44236",
+					"path": [
+						"api",
+						"Order"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "For Update",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "customerName",
+							"value": "Mohammed Arman",
+							"type": "text"
+						},
+						{
+							"key": "imageFile",
+							"type": "file",
+							"src": "/C:/Users/Yousuf/Pictures/Saved Pictures/OIP (2).jpg"
+						},
+						{
+							"key": "orderDate",
+							"value": "4/4/2023",
+							"type": "text"
+						},
+						{
+							"key": "isComplete",
+							"value": "True",
+							"type": "text"
+						},
+						{
+							"key": "orderDetail",
+							"value": "[\n            {             \n                \"productId\": 3,\n                \"quantity\": 3,\n                \"price\": 600.00\n            },\n{             \n                \"productId\": 3,\n                \"quantity\": 3,\n                \"price\": 600.00\n            }\n        ]",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://localhost:44236/api/Order/3",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "44236",
+					"path": [
+						"api",
+						"Order",
+						"3"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get By Id",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:44236/api/Order/4",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "44236",
+					"path": [
+						"api",
+						"Order",
+						"4"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "For Delete",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:44236/api/Order/1",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "44236",
+					"path": [
+						"api",
+						"Order",
+						"1"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

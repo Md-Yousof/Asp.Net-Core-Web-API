@@ -1,0 +1,895 @@
+=============================================================================================================
+|Step:01| Master Details Web API with postman collection check.
+==============================================================================================================
+				MM9_Master_Details In Core Web API
+==============================================================================================================
+1.Asp.Net Core Web API
+----------------------
+ Porject name: As your wish.
+ loaction: your Id folder.
+ solution name: As your wish.
+
+==============================================================================================================
+2.Frame work : .NET Core 3.1 (Out of support)
+--------------------------------------------
+   Autherntication type: None
+-------------------------------------------
+   Tik off Configure form HTTPS
+-------------------------------------------
+
+ Wait after click Create.
+
+===============================================================================================================================
+3. Install This three packages:
+==============================
+Microsoft.EntityFrameworkCore 3.1.32
+Microsoft.EntityFrameworkCore.SqlServer 3.1.32
+Microsoft.EntityFrameworkCore.Tools 3.1.32
+
+===================================================================================================================================
+4. Add connection on appsetting.json:
+=====================================
+
+ "ConnectionStrings": {
+    "DbCon": "Server=(localdb)\\mssqllocaldb; Database=MasterDb;Trusted_Connection=True; MultipleActiveResultSets=True;"}
+
+==================================================================================================================================
+5. Take Necessery Model class:  (Note: If there is no Models folder on project then create it and take your Model classes on it.)
+=============================
+
+Product:
+=======
+
+    public class Product
+    {
+        [Key]
+        public int ProductId { get; set; }
+        public string Name { get; set; }
+
+        public virtual ICollection<OrderDetail> Details { get; set; }
+    }
+
+========================================================================================================
+OrderDetail:
+============
+
+  public class OrderDetail
+    {
+        [Key]
+        public int DetailId { get; set; }
+        public int OrderId { get; set; }
+        [JsonIgnore]
+        public OrderMaster OrderMaster { get; set; }
+        public int ProductId { get; set; }
+        public Product Product { get; set; }
+        public int Quantity { get; set; }
+        public decimal Price { get; set; }
+    }
+
+
+[note: if any error shown just add this namespace 
+---using System.Text.Json.Serialization;]
+
+======================================================================================================
+OrderMaster:
+============
+
+   public class OrderMaster
+    {
+        [Key]
+        public int OrderId { get; set; }
+        public string CustomerName { get; set; }
+        public string ImagePath { get; set; }
+        [NotMapped]
+        public IFormFile ImageFile { get; set; }
+        public DateTime? OrderDate { get; set; }
+        public bool? IsComplete { get; set; } 
+
+        public virtual List<OrderDetail> OrderDetail { get; set; } = new List<OrderDetail>();
+    }
+
+======================================================================================================================
+MyDbContext :
+============
+
+  public class MyDbContext : DbContext
+    {
+        public MyDbContext()
+        {
+        }
+
+        public MyDbContext(DbContextOptions<MyDbContext> options) : base(options)
+        {
+        }
+
+        public DbSet<Product> Products { get; set; }
+        public DbSet<OrderMaster> OrderMasters { get; set; }
+        public DbSet<OrderDetail> OrderDetails { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Ignore<IdentityUserLogin<string>>();
+            modelBuilder.Ignore<IdentityUserRole<string>>();
+            modelBuilder.Ignore<IdentityUserToken<string>>();
+            modelBuilder.Entity<OrderDetail>()
+                .HasOne(d => d.OrderMaster)
+                .WithMany(o => o.OrderDetail)
+                .HasForeignKey(o => o.OrderId);
+
+            // Seed data for Products
+            modelBuilder.Entity<Product>().HasData(
+                new Product { ProductId = 1, Name = "Product 1" },
+                new Product { ProductId = 2, Name = "Product 2" },
+                new Product { ProductId = 3, Name = "Product 3" }
+            );
+
+            // Seed data for OrderMasters
+            modelBuilder.Entity<OrderMaster>().HasData(
+                new OrderMaster
+                {
+                    OrderId = 1,
+                    CustomerName = "John Doe",
+                    OrderDate = DateTime.Now,
+                    IsComplete = true
+                },
+                new OrderMaster
+                {
+                    OrderId = 2,
+                    CustomerName = "Jane Smith",
+                    OrderDate = DateTime.Now.AddDays(-1),
+                    IsComplete = false
+                }
+            );
+
+            // Seed data for OrderDetails
+            modelBuilder.Entity<OrderDetail>().HasData(
+                new OrderDetail
+                {
+                    DetailId = 1,
+                    OrderId = 1,
+                    ProductId = 1,
+                    Quantity = 1,
+                    Price = 100
+                },
+                new OrderDetail
+                {
+                    DetailId = 2,
+                    OrderId = 1,
+                    ProductId = 2,
+                    Quantity = 2,
+                    Price = 200
+                },
+                new OrderDetail
+                {
+                    DetailId = 3,
+                    OrderId = 2,
+                    ProductId = 3,
+                    Quantity = 3,
+                    Price = 300
+                }
+            );
+        }
+    }
+
+
+[MUST REBUILD After took all those models and dbcontext classes.]
+
+================================================================================================================================
+6. Add Services On Startup.cs class :  
+=====================================
+
+  services.AddDbContext<MyDbContext>(o=>o.UseSqlServer(Configuration.GetConnectionString("DbCon")));
+
+==================================================================================================================================
+7. PMC:    add-migration InitialCreate 
+-------    update-database
+
+=================================================================================================================================
+8. After migration Add your database from Server Explorer and check your tables 
+   then add few data on Products table.
+=================================================================================================================================
+9.Take Your OrderController : 
+============================
+====================================================================================================
+[ Note: Must Take a API Controller and after this add necessery namespaces for get rid of error.]
+====================================================================================================
+ 
+    [ApiController]
+    [Route("api/[controller]")]
+    public class OrderController : ControllerBase
+    {
+        private readonly MyDbContext _dbContext;
+        private readonly IWebHostEnvironment _hostEnvironment;
+
+        public OrderController(MyDbContext dbContext, IWebHostEnvironment hostEnvironment)
+        {
+            _dbContext = dbContext;
+            _hostEnvironment = hostEnvironment;
+        }
+
+        [HttpGet]
+        public IActionResult GetOrders()
+        {
+            var orders = _dbContext.OrderMasters.Include(o => o.OrderDetail).ToList();
+
+            return Ok(orders);
+        }
+
+
+        [HttpGet("{orderId}")]
+        public IActionResult GetOrder(int orderId)
+        {
+            var order = _dbContext.OrderMasters.Include(o => o.OrderDetail).FirstOrDefault(o => o.OrderId == orderId);
+            if (order == null)
+            {
+                return NotFound();
+            }
+            return Ok(order);
+
+        }
+
+
+        [HttpPost]
+        public async Task<IActionResult> PostOrder()
+        {
+
+            if (ModelState.IsValid)
+            {
+                var customerName = HttpContext.Request.Form["CustomerName"];
+                var OrderDate = DateTime.Parse(HttpContext.Request.Form["OrderDate"]);
+                var IsComplete = bool.Parse(HttpContext.Request.Form["IsComplete"]);
+
+                
+                var order = new OrderMaster()
+                {
+                    CustomerName= customerName,
+                    OrderDate= OrderDate,
+                    IsComplete = IsComplete
+                };
+
+                IFormFile imageFile = HttpContext.Request.Form.Files["ImageFile"];
+                if (imageFile != null)
+                {
+                    var filename = Guid.NewGuid().ToString() + (imageFile.FileName);
+                    var path = Path.Combine(_hostEnvironment.WebRootPath ?? string.Empty, "uploads", filename);
+                    
+                    order.ImagePath = path;
+                    using (var stream = new FileStream(path, FileMode.Create))
+                    {
+                        await imageFile.CopyToAsync(stream);
+                    }
+
+                    string orderDetailJson = HttpContext.Request.Form["OrderDetail"];
+                    if (!string.IsNullOrEmpty(orderDetailJson))
+                    {
+
+                        List<OrderDetail> orderDetailList = JsonConvert.DeserializeObject<List<OrderDetail>>(orderDetailJson);
+
+
+                        order.OrderDetail.AddRange(orderDetailList);
+                    }
+                }
+                _dbContext.OrderMasters.Add(order);
+                await _dbContext.SaveChangesAsync();
+            }
+            return Ok();
+           
+        }
+
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutOrder(int id, [FromForm] OrderMaster order)
+        {
+            order = _dbContext.OrderMasters.Include(o => o.OrderDetail).FirstOrDefault(o => o.OrderId == id);
+
+            if (ModelState.IsValid)
+            {
+                var cust = HttpContext.Request.Form["CustomerName"];
+                var date = HttpContext.Request.Form["OrderDate"];
+                var status = HttpContext.Request.Form["IsComplete"];
+                IFormFile imageFile = HttpContext.Request.Form.Files["ImageFile"];
+                var orderDetailJson = HttpContext.Request.Form["OrderDetail"];
+
+                if (!string.IsNullOrEmpty(cust) && !string.IsNullOrEmpty(date) && !string.IsNullOrEmpty(status) && imageFile != null && !string.IsNullOrEmpty(orderDetailJson))
+                {
+                    order.CustomerName = cust;
+                    order.OrderDate = DateTime.Parse(date);
+                    order.IsComplete = bool.Parse(status);
+
+                    var filename = Guid.NewGuid().ToString() + (imageFile.FileName);
+                    var path = Path.Combine(_hostEnvironment.WebRootPath ?? string.Empty, "uploads", filename);
+
+                    order.ImagePath = path;
+                    using (var stream = new FileStream(path, FileMode.Create))
+                    {
+                        await imageFile.CopyToAsync(stream);
+                    }
+
+                    var updatedOrderDetails = JsonConvert.DeserializeObject<List<OrderDetail>>(orderDetailJson);
+                    foreach (var updatedOrderDetail in updatedOrderDetails)
+                    {
+                        var existingOrderDetail = order.OrderDetail.FirstOrDefault(od => od.DetailId == updatedOrderDetail.DetailId);
+                        if (existingOrderDetail != null)
+                        {
+                            existingOrderDetail.ProductId = updatedOrderDetail.ProductId;
+                            existingOrderDetail.Quantity = updatedOrderDetail.Quantity;
+                            existingOrderDetail.Price = updatedOrderDetail.Price;
+                        }
+                        else
+                        {
+                            var newOrderDetail = new OrderDetail
+                            {
+                                ProductId = updatedOrderDetail.ProductId,
+                                Quantity = updatedOrderDetail.Quantity,
+                                Price = updatedOrderDetail.Price,
+                            };
+
+                            order.OrderDetail.Add(newOrderDetail);
+                        }
+
+                    }
+                }
+                await _dbContext.SaveChangesAsync();
+                return Ok();
+            }
+            return NotFound();
+        }
+
+
+
+        [HttpDelete("{orderId}")]
+        public async Task<IActionResult> DeleteOrder(int orderId)
+        {
+            var order = _dbContext.OrderMasters.FirstOrDefault(o => o.OrderId == orderId);
+            _dbContext.OrderMasters.Remove(order);
+            await _dbContext.SaveChangesAsync();
+
+            return Ok();
+        }
+    }
+
+
+================================================================================================================================
+10.Create a uploads folder.
+================================================================================================================================
+11.Then run project and copy local host link.
+================================================================================================================================
+12.Open Postman Check GET, POST, PUT, DELETE :
+---------------------------------------------
+
+Example: Given Link will not work just for example. Mind it.
+----------------------------------------------------------------------------------------
+
+GET: -------https://localhost:44325/api/order
+
+-----------------------------------------------------------------------------------------
+GET:-------https://localhost:44325/api/order/1
+
+----------------------------------------------------------------------------------------
+POST:-------https://localhost:44325/api/order
+
+     (For POST go form data and use your key value.)
+----------
+like this:
+----------
+KEY 				Value
+----				------  				
+customerName			input your data
+imageFile
+orderDate 
+isComplete
+orderDetail [
+               {
+                "productId": 1,
+                "quantity": 10,
+                "price": 500.00
+               },
+ 	       {
+                "productId": 1,
+                "quantity": 10,
+                "price": 500.00
+               }
+             ]
+
+-------------------------------------------------------------------------------------------------
+
+PUT:--------https://localhost:44302/api/TraineeDetail/3
+  (For PUT go form data and use your key value.)
+
+----------
+like this:
+----------
+KEY 				Value
+----				------  				
+customerName: 			input your data
+imageFile:
+orderDate :
+isComplete:
+orderDetail: [
+               { "detailId": 3,
+                "productId": 3,
+                "quantity": 30,
+                "price": 300.00
+               },
+ 	       { "detailId": 3,
+                "productId": 3,
+                "quantity": 30,
+                "price": 300.00
+               }
+             ]
+
+--------------------------------------------------------------------------------------------
+
+DElETE:------https://localhost:44325/api/Order/3
+
+bingoo done!!!!!!!!!!
+
+================================================================================================================================
+|Step:02|       Master Details Web API with JWT(Json Web Token)
+--------------------------------------------------------------------------------------------------------------------------------
+[Note: This step followed by, when JWT needed to add your project otherwise not need to follow (*.*).]
+================================================================================================================================
+To Add JWT:
+----------
+13. For JWT:Install this those packages:
+========================================
+
+Microsoft.AspNetCore.Authentication.JwtBearer V- 3.1.32
+Microsoft.AspNetCore.Identity.EntityFrameworkCore V- 3.1.32
+Microsoft.AspNetCore.Identity.UI V- 3.1.32
+
+---------------------------------------------------------------------------------------------------------------------------------
+And Add [Authorize] attribute on Your order controller. just below this two attribute.
+--------------------------------------------------------------------------------------------- ----------------- 
+[ApiController]
+[Route("api/[controller]")] 
+[Authorize]
+
+=================================================================================================================================
+14.Add A Folder Name Configuration And a class on it:
+=====================================================
+   
+public class JwtConfig
+    {
+        public string Secret { get; set; }
+    }
+
+=================================================================================================================================
+15. Add services on Startup.cs : [Add services and configure]
+===============================
+
+public void ConfigureServices(IServiceCollection services)
+        {
+            services.AddControllers();
+
+            services.AddDbContext<MyDbContext>(o => o.UseSqlServer(Configuration.GetConnectionString("DbCon")));
+
+            //JWT
+
+            services.Configure<JwtConfig>(Configuration.GetSection("JwtConfig"));
+
+            services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            }).AddJwtBearer(jwt =>
+            {
+                var key = Encoding.ASCII.GetBytes(Configuration["JwtConfig:Secret"]);
+
+                jwt.SaveToken = true;
+                jwt.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuer = false,
+                    ValidateAudience = false,
+                    RequireExpirationTime = false,
+                ValidateLifetime = true,
+                };
+            });
+
+
+            services.AddDefaultIdentity<IdentityUser>(o => o.SignIn.RequireConfirmedAccount = true).AddEntityFrameworkStores<MyDbContext>();
+
+        }
+
+
+
+public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        {
+            if (env.IsDevelopment())
+            {
+                app.UseDeveloperExceptionPage();
+            }
+	    app.UseStaticFiles();
+            app.UseHttpsRedirection();
+
+            app.UseRouting();
+            app.UseAuthentication();
+            app.UseAuthorization();
+
+
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllers();
+            });
+        }
+
+
+
+
+===================================================================================================================================
+16. Add JwtConfig on appsetting.json:
+=====================================
+,
+  "JwtConfig": {
+    "Secret": "randomlinesasasecretkeykiarkoraideanai"
+  }
+
+=======================================================================================
+17.Take A models on Models folder:
+=================================
+AuthResult:
+-----------
+public class AuthResult
+    {
+        public string Token { get; set; }
+        public bool Result { get; set; }
+        public List<string> Errors { get; set; }
+    }
+
+========================================================================================
+18. Add A DTOs Folder: [Take Three Classes on there on DTOs folder. Given below]
+======================
+--------------------------------------------------------------------------------------
+UserRegistrationDto:
+--------------------------------------------------------------------------------------
+public class UserRegistrationDto
+    {
+        [Required]
+        public string Name { get; set; }
+        [Required]
+        public string Email { get; set; }
+        [Required]
+        public string Password { get; set; }
+    }
+
+--------------------------------------------------------------------------------------
+UserLoginDto:
+--------------------------------------------------------------------------------------
+public class UserLoginDto
+    {
+        [Required]
+        public string Email { get; set; } 
+        
+        [Required]
+        public string Password { get; set; }
+    }
+
+----------------------------------------------------------------------------------------
+ResponseDto:
+----------------------------------------------------------------------------------------
+
+public class ResponseDto:AuthResult
+    {
+    }
+
+======================================================================================
+19.Replace your Dbcontext Class:
+===============================
+
+ public class MyDbContext : IdentityDbContext<IdentityUser>
+    {
+        public MyDbContext()
+        {
+        }
+
+        public MyDbContext(DbContextOptions<MyDbContext> options) : base(options)
+        {
+        }
+
+        public DbSet<Product> Products { get; set; }
+        public DbSet<OrderMaster> OrderMasters { get; set; }
+        public DbSet<OrderDetail> OrderDetails { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Ignore<IdentityUserLogin<string>>();
+            modelBuilder.Ignore<IdentityUserRole<string>>();
+            modelBuilder.Ignore<IdentityUserToken<string>>();
+            modelBuilder.Entity<OrderDetail>()
+                .HasOne(d => d.OrderMaster)
+                .WithMany(o => o.OrderDetail)
+                .HasForeignKey(o => o.OrderId);
+        }
+    }
+
+==============================================================================================================
+20.PMC : Add-Migration UpdateInit
+         Update-Database
+==========================================================================================================
+21.Take another API Controller:
+===============================
+
+AuthManagementController:
+========================
+
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using System.Threading.Tasks;
+using System;
+using Test.Configuration;
+using Test.DTOs;
+using System.Linq;
+
+namespace Test.Controllers
+{
+    [Route("api/[controller]")] // api/authmanagement
+    [ApiController]
+    public class AuthManagementController : ControllerBase
+    {
+        private readonly UserManager<IdentityUser> _userManager;
+        private readonly JwtConfig _jwtConfig;
+
+        public AuthManagementController(UserManager<IdentityUser> userManager, IOptionsMonitor<JwtConfig> optionsMonitor)
+        {
+            _userManager = userManager;
+            _jwtConfig = optionsMonitor.CurrentValue;
+        }
+
+        [HttpPost]
+        [Route("Register")]
+        public async Task<IActionResult> Register([FromBody] UserRegistrationDto user)
+        {
+            if (ModelState.IsValid)
+            {
+                var existingUser = await _userManager.FindByEmailAsync(user.Email);
+
+                if (existingUser != null)
+                {
+                    return BadRequest(new ResponseDto()
+                    {
+                        Result = false,
+                        Errors = new List<string>()
+                        {
+                            "Email already exist"
+                        }
+                    });
+                }
+
+                var newUser = new IdentityUser() { Email = user.Email, UserName = user.Email };
+                var isCreated = await _userManager.CreateAsync(newUser, user.Password);
+                if (isCreated.Succeeded)
+                {
+                    return Ok(newUser.UserName);
+                }
+
+                return new JsonResult(new ResponseDto()
+                {
+                    Result = false,
+                    Errors = isCreated.Errors.Select(x => x.Description).ToList()
+                })
+                { StatusCode = 500 };
+            }
+
+            return BadRequest(new ResponseDto()
+            {
+                Result = false,
+                Errors = new List<string>()
+                {
+                    "Invalid payload"
+                }
+            });
+        }
+
+        private string GenerateJwtToken(IdentityUser user)
+        {
+            var jwtTokenHandler = new JwtSecurityTokenHandler();
+            var key = Encoding.ASCII.GetBytes(_jwtConfig.Secret);
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(new[]
+                {
+                new Claim("Id", user.Id),
+                new Claim(JwtRegisteredClaimNames.Sub, user.Email),
+                new Claim(JwtRegisteredClaimNames.Email, user.Email),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            }),
+                Expires = DateTime.UtcNow.AddHours(6),
+                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha512Signature)
+            };
+
+            var token = jwtTokenHandler.CreateToken(tokenDescriptor);
+
+            var jwtToken = jwtTokenHandler.WriteToken(token);
+
+            return jwtToken;
+        }
+
+        [HttpPost]
+        [Route("Login")]
+        public async Task<IActionResult> Login([FromBody] UserLoginDto user)
+        {
+            if (ModelState.IsValid)
+            {
+                var existingUser = await _userManager.FindByEmailAsync(user.Email);
+
+                if (existingUser == null)
+                {
+                    return BadRequest(new ResponseDto()
+                    {
+                        Result = false,
+                        Errors = new List<string>()
+                        {
+                            "Invalid authentication request"
+                        }
+                    });
+                }
+
+                var isCorrect = await _userManager.CheckPasswordAsync(existingUser, user.Password);
+
+                if (isCorrect)
+                {
+                    var jwtToken = GenerateJwtToken(existingUser);
+
+                    return Ok(new ResponseDto()
+                    {
+                        Result = true,
+                        Token = jwtToken
+                    });
+                }
+                else
+                {
+                    return BadRequest(new ResponseDto()
+                    {
+                        Result = false,
+                        Errors = new List<string>()
+                        {
+                            "Invalid authentication request"
+                        }
+                    });
+                }
+            }
+
+            return BadRequest(new ResponseDto()
+            {
+                Result = false,
+                Errors = new List<string>()
+                {
+                    "Invalid payload"
+                }
+            });
+        }
+    }
+
+}
+
+
+----------------
+[ Must Rebulid ]
+----------------
+===================================================================================================================
+22. Open Postman Check GET, POST: [For JWT]
+==============================================
+Example: Replace your localhost port for work.
+----------------------------------------------
+=======================
+POST For User Register:
+=======================
+
+POST:-------https://localhost:44325/api/authManagement/register
+-----------------------------------------------------------------
+ (For POST go Body=> raw.  JSON)
+-----------------------------------------------------------------
+
+{
+  "name": "Pain",
+  "email": "p@mail.com",
+  "password": "Pn@123"
+}
+
+
+Note: password must be 6 charecter.
+
+================================================================================
+
+
+Login POST For Token:
+=====================
+
+POST:-------https://localhost:44325/api/authManagement/login
+-------------------------------------------------------------
+  (For POST go Body=> raw. JSON)
+-------------------------------------------------------------
+
+{
+  "email": "p@mail.com",
+  "password": "Pn@123"
+}
+
+-------------------------------------------------------------
+From Body: Copy your token. 
+
+To Get Access Order Api You need to access by token.
+
+=============================================================
+GET: -------https://localhost:44325/api/order
+=============================================================
+ (For GET => Authorization=> Type to Bearer Token)
+--------------------------------------------------------------
+
+--------------------------------------------------------------------------------------
+GET: -------https://localhost:44325/api/order
+(For GET => Authorization=> Type to Bearer Token paste your token)
+--------------------------------------------------------------------------------------
+GET:-------https://localhost:44325/api/order/1
+(For GET => Authorization=> Type to Bearer Token paste your token)
+------------------------------------------------------------------------------------
+POST:-------https://localhost:44325/api/order
+     (For POST go form data and use your key value.)
+     (For POST => Authorization=> Type to Bearer Token paste your token)
+----------
+like this:
+----------
+KEY 				Value
+----				------  				
+customerName: 			input your data
+imageFile:
+orderDate :
+isComplete:
+orderDetail: [
+               {
+                "productId": 1,
+                "quantity": 10,
+                "price": 500.00
+               },
+ 	       {
+                "productId": 1,
+                "quantity": 10,
+                "price": 500.00
+               }
+             ]
+--------------------------------------------------------------------------------------------------------
+PUT:--------https://localhost:44302/api/TraineeDetail/3
+  (For PUT go form data and use your key value.)
+  (For PUT => Authorization=> Type to Bearer Token paste your token)
+----------
+like this:
+----------
+KEY 				Value
+----				------  				
+customerName: 			input your data
+imageFile:
+orderDate :
+isComplete:
+orderDetail: [
+               { "detailId": 4,
+                "productId": 3,
+                "quantity": 30,
+                "price": 300.00
+               },
+ 	       { "detailId": 4,
+                "productId": 3,
+                "quantity": 30,
+                "price": 300.00
+               }
+             ]
+-----------------------------------------------------------------
+
+DElETE:------https://localhost:44325/api/Order/3
+ (For Delete => Authorization=> Type to Bearer Token paste your token)
+
+
+Then you will able to seen your data otherwise not this is JWT Api. 
+Done.
+bingoo done!!!!!!!!!!
+
+===========================================================================================
