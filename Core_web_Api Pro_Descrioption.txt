@@ -1,0 +1,14 @@
+
+	Project Name	     : to manage Orders with Master Details using postman
+	Project type	     : ASP.NET Core Web API, 
+	Technology Used	     : Entity Framework 3.1, SQL Server, Postman,
+	Programming Language : C#
+	===================================================================================
+
+	Description	     : this ASP.NET Core Web API Project is developed using the .NET Framework 3.1 and 
+			       follows a postman for Test Operation. Project is designed to manage orders and 
+			       their associated order items, with a focus on flexibility and the ability to add
+			       multiple items to ad order
+
+
+
